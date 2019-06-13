@@ -1,0 +1,50 @@
+short_name: CIFAR10_Demo
+n_gpu: 1
+save_dir: saved/
+seed: 1234
+
+arch:
+  type: Wide_ResNet
+  args:
+    num_classes: 100
+    verbose: 2
+
+data_loader:
+  type: Cifar100DataLoader
+  args:
+    batch_size: 128
+    data_dir: data/
+    num_workers: 8
+    shuffle: true
+    validation_split: 0.1
+
+loss: ce_loss
+
+lr_scheduler:
+  type: StepLR
+  args:
+    gamma: 0.1
+    step_size: 50
+
+metrics:
+- accuracy
+
+optimizer:
+  type: Adam
+  args:
+    lr: 0.1
+    weight_decay: 0
+
+training:
+  early_stop: 20
+  epochs: 100
+  monitor: min val_loss
+  save_period: 1
+  tensorboardX: true
+  verbose: 2
+
+testing:
+  data_dir: data/
+  batch_size: 128
+  num_workers: 8
+  verbose: 2

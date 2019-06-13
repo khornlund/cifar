@@ -1,0 +1,26 @@
+name: cifar
+
+channels:
+  - pytorch
+  - conda-forge
+
+dependencies:
+  - python=3.6
+  - numpy
+  - scipy
+  - matplotlib
+  - pandas
+  - pytest
+  - flake8
+  - click
+  - jupyter
+  - pyyaml
+  - pytorch
+  - torchvision
+  - cudatoolkit=10.0
+  - tensorflow
+  - pip:
+    - tqdm
+    - tensorboard
+    - tensorboardX
+    - -e .
