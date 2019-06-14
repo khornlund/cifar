@@ -57,58 +57,52 @@ class Runner:
         self.logger.debug('Finished!')
 
     def predict(self, config, model_checkpoint):
-            setup_logging(config)
-            self.logger = setup_logger(self, config['testing']['verbose'])
-            self._seed_everything(config['seed'])
+        setup_logging(config)
+        self.logger = setup_logger(self, config['testing']['verbose'])
+        self._seed_everything(config['seed'])
 
-            self.logger.info(f'Using config:\n{config}')
+        self.logger.info(f'Using config:\n{config}')
 
-            self.logger.debug('Getting data_loader instance')
-            data_loader = getattr(module_data, config['data_loader']['type'])(
-                config['testing']['data_dir'],
-                batch_size=config['testing']['batch_size'],
-                shuffle=False,
-                validation_split=0.0,
-                train=False,
-                num_workers=config['testing']['num_workers'],
-                verbose=config['testing']['verbose']
-            )
+        self.logger.debug('Getting data_loader instance')
+        data_loader = getattr(module_data, config['data_loader']['type'])(
+            config['testing']['data_dir'],
+            batch_size=config['testing']['batch_size'],
+            shuffle=False,
+            validation_split=0.0,
+            training=False,
+            num_workers=config['testing']['num_workers']
+        )
 
-            self.logger.debug('Building model architecture')
-            model = get_instance(module_arch, 'arch', config)
+        self.logger.debug('Building model architecture')
+        model = get_instance(module_arch, 'arch', config)
 
-            self.logger.debug(f'Loading checkpoint {model_checkpoint}')
-            checkpoint = torch.load(model_checkpoint)
-            state_dict = checkpoint['state_dict']
-            if config['n_gpu'] > 1:
-                model = torch.nn.DataParallel(model)
-            model.load_state_dict(state_dict)
+        self.logger.debug(f'Loading checkpoint {model_checkpoint}')
+        checkpoint = torch.load(model_checkpoint)
+        state_dict = checkpoint['state_dict']
+        if config['n_gpu'] > 1:
+            model = torch.nn.DataParallel(model)
+        model.load_state_dict(state_dict)
 
-            # prepare model for testing
-            model, device = self._prepare_device(model, config['n_gpu'])
-            model.eval()
+        # prepare model for testing
+        model, device = self._prepare_device(model, config['n_gpu'])
+        model.eval()
 
-            all_preds = torch.zeros((len(data_loader.dataset), model.num_classes))
-            self.logger.debug('Starting...')
-            with torch.no_grad():
-                for i, data in enumerate(tqdm(data_loader)):
-                    data = data.to(device)
-                    output = model(data)
-                    batch_size = output.shape[0]
-                    batch_preds = output.max(1)[1]  # argmax
-                    all_preds[i * batch_size:(i + 1) * batch_size, :] = batch_preds.cpu()
+        all_preds   = torch.zeros(len(data_loader.dataset))
+        all_targets = torch.zeros(len(data_loader.dataset))
+        self.logger.debug('Starting...')
+        with torch.no_grad():
+            for i, (data, target) in tqdm(enumerate(data_loader)):
+                data = data.to(device)
+                output = model(data)
+                batch_size = output.shape[0]
+                batch_preds = output.max(1)[1]  # argmax
+                all_preds[i * batch_size:(i + 1) * batch_size]   = batch_preds.cpu()
+                all_targets[i * batch_size:(i + 1) * batch_size] = target
 
-            # wrangle and save predictions
-
-            raw_df = pd.DataFrame(preds.numpy())
-
-            # do something with predictions
-
-            predictions_filename = os.path.join(
-                config['testing']['data_dir'],
-                config['name'] + '_preds.csv')
-            raw_df.to_csv(predictions_filename)
-            self.logger.info(f'Finished saving predictions to "{predictions_filename}"')
+        # compute accuracy
+        correct  = (all_preds == all_targets).type(torch.FloatTensor)
+        accuracy = correct.mean()
+        self.logger.info(f'Prediction accuracy: {accuracy}')
 
     def _prepare_device(self, model, n_gpu_use):
         device, device_ids = self._get_device(n_gpu_use)

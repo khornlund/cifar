@@ -1,6 +1,6 @@
-=======
-cifar10
-=======
+=====
+CIFAR
+=====
 PyTorch deep learning project made easy.
 
 .. contents:: Table of Contents
